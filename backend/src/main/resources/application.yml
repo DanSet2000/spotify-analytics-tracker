@@ -27,6 +27,15 @@ app:
   backup:
     interval-ms: 1800000
     initial-delay-ms: 60000
+  security:
+    username: ${APP_USERNAME}
+    password: ${APP_PASSWORD}
+    jwt-secret: ${APP_JWT_SECRET}
+    jwt-ttl: 12h
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://127.0.0.1:3000
 
 spotify:
   client-id: ${SPOTIFY_CLIENT_ID}

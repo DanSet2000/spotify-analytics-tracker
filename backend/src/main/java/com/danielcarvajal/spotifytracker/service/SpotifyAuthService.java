@@ -1,10 +1,12 @@
 package com.danielcarvajal.spotifytracker.service;
 
 import com.danielcarvajal.spotifytracker.config.SpotifyProperties;
+import com.danielcarvajal.spotifytracker.dto.SpotifyStatus;
 import com.danielcarvajal.spotifytracker.dto.SpotifyTokenResponse;
 import com.danielcarvajal.spotifytracker.model.SpotifyAuth;
 import com.danielcarvajal.spotifytracker.repository.SpotifyAuthRepository;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import org.springframework.http.MediaType;
@@ -21,6 +23,7 @@ public class SpotifyAuthService {
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
     private static final String SCOPES =
             "user-read-currently-playing user-read-playback-state user-read-recently-played";
+    private static final Duration STATE_TTL = Duration.ofMinutes(10);
 
     private final SpotifyProperties props;
     private final SpotifyAuthRepository repo;
@@ -29,15 +32,28 @@ public class SpotifyAuthService {
     private String cachedAccessToken;
     private Instant cachedExpiry = Instant.EPOCH;
 
+    private String pendingState;
+    private Instant pendingStateExpiry = Instant.EPOCH;
+
     public SpotifyAuthService(SpotifyProperties props, SpotifyAuthRepository repo) {
         this.props = props;
         this.repo = repo;
     }
 
-    public String newState() {
+    public synchronized String createState() {
         byte[] bytes = new byte[16];
         new SecureRandom().nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        pendingState = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        pendingStateExpiry = Instant.now().plus(STATE_TTL);
+        return pendingState;
+    }
+
+    public synchronized boolean consumeState(String state) {
+        boolean valid = pendingState != null
+                && pendingState.equals(state)
+                && Instant.now().isBefore(pendingStateExpiry);
+        pendingState = null;
+        return valid;
     }
 
     public String buildAuthorizeUrl(String state) {
@@ -86,6 +102,12 @@ public class SpotifyAuthService {
 
     public boolean isConnected() {
         return repo.existsById(1);
+    }
+
+    public SpotifyStatus status() {
+        return repo.findById(1)
+                .map(auth -> new SpotifyStatus(true, auth.getUpdatedAt()))
+                .orElseGet(() -> new SpotifyStatus(false, null));
     }
 
     public synchronized void invalidateAccessToken() {
