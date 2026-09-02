@@ -27,6 +27,23 @@ export type AlbumEdition = {
   plays: number;
 };
 
+export type ArtistDetail = {
+  id: string;
+  name: string;
+  plays: number;
+  topAlbums: AlbumStats[];
+  topTracks: TrackStats[];
+};
+
+export type AlbumDetail = {
+  id: string;
+  name: string;
+  artist: string;
+  plays: number;
+  topTracks: TrackStats[];
+  editions: AlbumEdition[];
+};
+
 export type DailyPlays = {
   date: string;
   plays: number;

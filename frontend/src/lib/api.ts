@@ -1,7 +1,8 @@
 import { clearToken, getToken } from "./auth";
 import type {
-  AlbumEdition,
+  AlbumDetail,
   AlbumStats,
+  ArtistDetail,
   ArtistStats,
   SpotifyStatus,
   StatsSummary,
@@ -61,7 +62,8 @@ export const api = {
   topArtists: (limit = 10) => request<ArtistStats[]>(`/api/stats/top-artists?limit=${limit}`),
   topAlbums: (limit = 10) => request<AlbumStats[]>(`/api/stats/top-albums?limit=${limit}`),
   topTracks: (limit = 10) => request<TrackStats[]>(`/api/stats/top-tracks?limit=${limit}`),
-  albumEditions: (id: string) => request<AlbumEdition[]>(`/api/stats/albums/${id}/editions`),
+  artistDetail: (id: string) => request<ArtistDetail>(`/api/stats/artists/${id}`),
+  albumDetail: (id: string) => request<AlbumDetail>(`/api/stats/albums/${id}`),
 
   spotifyStatus: () => request<SpotifyStatus>("/api/spotify/status"),
   spotifyLoginUrl: () => request<{ url: string }>("/api/spotify/login"),

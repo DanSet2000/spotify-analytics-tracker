@@ -1,14 +1,14 @@
-import AlbumDetail from "@/components/AlbumDetail";
+import ArtistDetail from "@/components/ArtistDetail";
 import AuthGuard from "@/components/AuthGuard";
 import Header from "@/components/Header";
 
-export default async function AlbumPage(props: PageProps<"/albums/[id]">) {
+export default async function ArtistPage(props: PageProps<"/artists/[id]">) {
   const { id } = await props.params;
 
   return (
     <AuthGuard>
       <Header />
-      <AlbumDetail id={id} />
+      <ArtistDetail id={id} />
     </AuthGuard>
   );
 }

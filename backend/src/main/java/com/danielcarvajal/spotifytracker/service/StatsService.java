@@ -1,12 +1,15 @@
 package com.danielcarvajal.spotifytracker.service;
 
 import com.danielcarvajal.spotifytracker.config.AppProperties;
-import com.danielcarvajal.spotifytracker.dto.AlbumEdition;
+import com.danielcarvajal.spotifytracker.dto.AlbumDetail;
 import com.danielcarvajal.spotifytracker.dto.AlbumStats;
+import com.danielcarvajal.spotifytracker.dto.ArtistDetail;
 import com.danielcarvajal.spotifytracker.dto.ArtistStats;
 import com.danielcarvajal.spotifytracker.dto.DailyPlays;
 import com.danielcarvajal.spotifytracker.dto.StatsSummary;
 import com.danielcarvajal.spotifytracker.dto.TrackStats;
+import com.danielcarvajal.spotifytracker.repository.ArtistRepository;
+import com.danielcarvajal.spotifytracker.repository.CanonicalAlbumRepository;
 import com.danielcarvajal.spotifytracker.repository.PlayRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -27,10 +31,17 @@ public class StatsService {
     private static final int LAST_DAYS = 7;
 
     private final PlayRepository playRepo;
+    private final ArtistRepository artistRepo;
+    private final CanonicalAlbumRepository canonicalAlbumRepo;
     private final ZoneId zone;
 
-    public StatsService(PlayRepository playRepo, AppProperties appProperties) {
+    public StatsService(PlayRepository playRepo,
+                        ArtistRepository artistRepo,
+                        CanonicalAlbumRepository canonicalAlbumRepo,
+                        AppProperties appProperties) {
         this.playRepo = playRepo;
+        this.artistRepo = artistRepo;
+        this.canonicalAlbumRepo = canonicalAlbumRepo;
         this.zone = appProperties.timezone();
     }
 
@@ -46,8 +57,23 @@ public class StatsService {
         return playRepo.topTracks(Limit.of(limit));
     }
 
-    public List<AlbumEdition> albumEditions(UUID canonicalAlbumId) {
-        return playRepo.editionsOf(canonicalAlbumId);
+    public Optional<ArtistDetail> artistDetail(String artistId, int limit) {
+        return artistRepo.findById(artistId).map(artist -> new ArtistDetail(
+                artist.getId(),
+                artist.getName(),
+                playRepo.countByArtist(artistId),
+                playRepo.topAlbumsByArtist(artistId, Limit.of(limit)),
+                playRepo.topTracksByArtist(artistId, Limit.of(limit))));
+    }
+
+    public Optional<AlbumDetail> albumDetail(UUID canonicalAlbumId, int limit) {
+        return canonicalAlbumRepo.findById(canonicalAlbumId).map(album -> new AlbumDetail(
+                album.getId(),
+                album.getCanonicalName(),
+                album.getPrimaryArtist().getName(),
+                playRepo.countByCanonicalAlbum(canonicalAlbumId),
+                playRepo.topTracksByCanonicalAlbum(canonicalAlbumId, Limit.of(limit)),
+                playRepo.editionsOf(canonicalAlbumId)));
     }
 
     public StatsSummary summary() {

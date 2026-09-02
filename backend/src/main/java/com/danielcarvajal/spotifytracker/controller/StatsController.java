@@ -1,18 +1,21 @@
 package com.danielcarvajal.spotifytracker.controller;
 
-import com.danielcarvajal.spotifytracker.dto.AlbumEdition;
+import com.danielcarvajal.spotifytracker.dto.AlbumDetail;
 import com.danielcarvajal.spotifytracker.dto.AlbumStats;
+import com.danielcarvajal.spotifytracker.dto.ArtistDetail;
 import com.danielcarvajal.spotifytracker.dto.ArtistStats;
 import com.danielcarvajal.spotifytracker.dto.StatsSummary;
 import com.danielcarvajal.spotifytracker.dto.TrackStats;
 import com.danielcarvajal.spotifytracker.service.StatsService;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/stats")
@@ -41,9 +44,16 @@ public class StatsController {
         return stats.topTracks(clamp(limit));
     }
 
-    @GetMapping("/albums/{id}/editions")
-    public List<AlbumEdition> albumEditions(@PathVariable UUID id) {
-        return stats.albumEditions(id);
+    @GetMapping("/artists/{id}")
+    public ArtistDetail artist(@PathVariable String id, @RequestParam(defaultValue = "10") int limit) {
+        return stats.artistDetail(id, clamp(limit))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Artista no encontrado"));
+    }
+
+    @GetMapping("/albums/{id}")
+    public AlbumDetail album(@PathVariable UUID id, @RequestParam(defaultValue = "10") int limit) {
+        return stats.albumDetail(id, clamp(limit))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Album no encontrado"));
     }
 
     @GetMapping("/summary")

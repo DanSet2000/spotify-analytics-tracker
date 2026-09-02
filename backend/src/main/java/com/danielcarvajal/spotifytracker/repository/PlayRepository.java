@@ -53,6 +53,65 @@ public interface PlayRepository extends JpaRepository<Play, UUID> {
     List<TrackStats> topTracks(Limit limit);
 
     @Query("""
+            select count(p)
+            from Play p
+            join p.track t
+            join t.artists a
+            where a.id = :artistId
+            """)
+    long countByArtist(@Param("artistId") String artistId);
+
+    @Query("""
+            select new com.danielcarvajal.spotifytracker.dto.AlbumStats(ca.id, ca.canonicalName, ar.name, count(p))
+            from Play p
+            join p.track t
+            join t.artists a
+            join t.album al
+            join al.canonicalAlbum ca
+            join ca.primaryArtist ar
+            where a.id = :artistId
+            group by ca.id, ca.canonicalName, ar.name
+            order by count(p) desc, ca.canonicalName
+            """)
+    List<AlbumStats> topAlbumsByArtist(@Param("artistId") String artistId, Limit limit);
+
+    @Query("""
+            select new com.danielcarvajal.spotifytracker.dto.TrackStats(ct.id, ct.canonicalName, ca.canonicalName, ar.name, count(p))
+            from Play p
+            join p.track t
+            join t.artists a
+            join t.canonicalTrack ct
+            join ct.canonicalAlbum ca
+            join ca.primaryArtist ar
+            where a.id = :artistId
+            group by ct.id, ct.canonicalName, ca.canonicalName, ar.name
+            order by count(p) desc, ct.canonicalName
+            """)
+    List<TrackStats> topTracksByArtist(@Param("artistId") String artistId, Limit limit);
+
+    @Query("""
+            select count(p)
+            from Play p
+            join p.track t
+            join t.album al
+            where al.canonicalAlbum.id = :canonicalAlbumId
+            """)
+    long countByCanonicalAlbum(@Param("canonicalAlbumId") UUID canonicalAlbumId);
+
+    @Query("""
+            select new com.danielcarvajal.spotifytracker.dto.TrackStats(ct.id, ct.canonicalName, ca.canonicalName, ar.name, count(p))
+            from Play p
+            join p.track t
+            join t.canonicalTrack ct
+            join ct.canonicalAlbum ca
+            join ca.primaryArtist ar
+            where ca.id = :canonicalAlbumId
+            group by ct.id, ct.canonicalName, ca.canonicalName, ar.name
+            order by count(p) desc, ct.canonicalName
+            """)
+    List<TrackStats> topTracksByCanonicalAlbum(@Param("canonicalAlbumId") UUID canonicalAlbumId, Limit limit);
+
+    @Query("""
             select new com.danielcarvajal.spotifytracker.dto.AlbumEdition(al.id, al.name, al.editionLabel, al.releaseDate, count(p))
             from Play p
             join p.track t

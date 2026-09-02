@@ -50,7 +50,14 @@ function Dashboard() {
           title="Artistas"
           loading={artists.loading}
           error={artists.error}
-          items={artists.data?.map((a) => ({ id: a.id, title: a.name, plays: a.plays })) ?? null}
+          items={
+            artists.data?.map((a) => ({
+              id: a.id,
+              title: a.name,
+              plays: a.plays,
+              href: `/artists/${a.id}`,
+            })) ?? null
+          }
         />
         <TopList
           title="Albumes"
