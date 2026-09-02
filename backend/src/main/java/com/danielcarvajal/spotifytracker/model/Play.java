@@ -37,5 +37,8 @@ public class Play {
     @Column(nullable = false)
     private Instant playedAt;
 
+    @Column(nullable = false)
+    private Instant endedAt;
+
     private int msPlayed;
 }

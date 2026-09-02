@@ -88,6 +88,11 @@ public class SpotifyAuthService {
         return repo.existsById(1);
     }
 
+    public synchronized void invalidateAccessToken() {
+        cachedAccessToken = null;
+        cachedExpiry = Instant.EPOCH;
+    }
+
     private SpotifyTokenResponse requestToken(MultiValueMap<String, String> form) {
         return restClient.post()
                 .uri(TOKEN_URL)

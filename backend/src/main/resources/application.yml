@@ -20,6 +20,11 @@ spring:
 
 app:
   timezone: America/Guayaquil
+  tracker:
+    interval-ms: 20000
+  backup:
+    interval-ms: 1800000
+    initial-delay-ms: 60000
 
 spotify:
   client-id: ${SPOTIFY_CLIENT_ID}
@@ -28,4 +33,4 @@ spotify:
 
 logging:
   level:
-    org.hibernate.SQL: debug
+    com.danielcarvajal.spotifytracker: debug
