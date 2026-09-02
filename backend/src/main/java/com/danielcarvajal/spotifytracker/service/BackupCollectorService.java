@@ -1,5 +1,6 @@
 package com.danielcarvajal.spotifytracker.service;
 
+import com.danielcarvajal.spotifytracker.config.AppProperties;
 import com.danielcarvajal.spotifytracker.dto.RecentlyPlayedResponse;
 import com.danielcarvajal.spotifytracker.dto.SpotifyTrackDto;
 import java.time.Instant;
@@ -19,13 +20,17 @@ public class BackupCollectorService {
     private final SpotifyPlayerClient player;
     private final PlayService playService;
     private final SpotifyAuthService authService;
+    private final Instant ignoreBefore;
 
     public BackupCollectorService(SpotifyPlayerClient player,
                                   PlayService playService,
-                                  SpotifyAuthService authService) {
+                                  SpotifyAuthService authService,
+                                  AppProperties props) {
         this.player = player;
         this.playService = playService;
         this.authService = authService;
+        String cutoff = props.backup() == null ? null : props.backup().ignoreBefore();
+        this.ignoreBefore = cutoff == null || cutoff.isBlank() ? Instant.EPOCH : Instant.parse(cutoff);
     }
 
     @Scheduled(
@@ -58,6 +63,9 @@ public class BackupCollectorService {
             return false;
         }
         Instant endedAt = Instant.parse(item.playedAt());
+        if (endedAt.isBefore(ignoreBefore)) {
+            return false;
+        }
         Instant startedAt = endedAt.minusMillis(track.durationMs());
         boolean saved = playService.record(track, startedAt, endedAt, track.durationMs());
         if (saved) {
