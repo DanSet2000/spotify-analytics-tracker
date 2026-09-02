@@ -17,6 +17,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        hbm2ddl:
+          halt_on_error: true
 
 app:
   timezone: America/Guayaquil
