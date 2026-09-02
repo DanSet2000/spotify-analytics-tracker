@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 
 @Service
@@ -49,9 +48,6 @@ public class BackupCollectorService {
                 }
             }
             log.info("Respaldo: {} nuevas de {} escuchas recientes", inserted, items.size());
-        } catch (HttpClientErrorException.Unauthorized e) {
-            authService.invalidateAccessToken();
-            log.warn("Spotify rechazo el token en el respaldo, se renovara en la siguiente pasada");
         } catch (RestClientException e) {
             log.warn("Fallo en el respaldo: {}", e.getMessage());
         }

@@ -116,10 +116,18 @@ public class CatalogService {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return switch (precision == null ? "day" : precision) {
+        return switch (precision == null ? inferPrecision(value) : precision) {
             case "year" -> LocalDate.of(Integer.parseInt(value), 1, 1);
             case "month" -> YearMonth.parse(value).atDay(1);
             default -> LocalDate.parse(value);
+        };
+    }
+
+    private static String inferPrecision(String value) {
+        return switch (value.length()) {
+            case 4 -> "year";
+            case 7 -> "month";
+            default -> "day";
         };
     }
 }

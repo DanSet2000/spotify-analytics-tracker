@@ -21,8 +21,7 @@ public class SpotifyAuthController {
 
     @GetMapping("/login")
     public SpotifyLoginUrl login() {
-        String state = authService.createState();
-        return new SpotifyLoginUrl(authService.buildAuthorizeUrl(state));
+        return new SpotifyLoginUrl(authService.beginAuthorization());
     }
 
     @GetMapping("/callback")

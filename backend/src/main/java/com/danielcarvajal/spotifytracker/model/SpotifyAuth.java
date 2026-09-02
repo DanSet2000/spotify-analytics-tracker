@@ -14,8 +14,10 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SpotifyAuth {
 
+    public static final int SINGLE_ROW_ID = 1;
+
     @Id
-    private Integer id = 1;
+    private Integer id = SINGLE_ROW_ID;
 
     @Column(nullable = false)
     private String refreshToken;

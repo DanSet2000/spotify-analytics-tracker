@@ -1,6 +1,5 @@
 package com.danielcarvajal.spotifytracker.service;
 
-import com.danielcarvajal.spotifytracker.config.SpotifyProperties;
 import com.danielcarvajal.spotifytracker.dto.SpotifyStatus;
 import com.danielcarvajal.spotifytracker.dto.SpotifyTokenResponse;
 import com.danielcarvajal.spotifytracker.model.SpotifyAuth;
@@ -9,25 +8,16 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class SpotifyAuthService {
 
-    private static final String AUTHORIZE_URL = "https://accounts.spotify.com/authorize";
-    private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
-    private static final String SCOPES =
-            "user-read-currently-playing user-read-playback-state user-read-recently-played";
     private static final Duration STATE_TTL = Duration.ofMinutes(10);
+    private static final long EXPIRY_MARGIN_SECONDS = 60;
 
-    private final SpotifyProperties props;
+    private final SpotifyAccountsClient accounts;
     private final SpotifyAuthRepository repo;
-    private final RestClient restClient = RestClient.create();
 
     private String cachedAccessToken;
     private Instant cachedExpiry = Instant.EPOCH;
@@ -35,17 +25,17 @@ public class SpotifyAuthService {
     private String pendingState;
     private Instant pendingStateExpiry = Instant.EPOCH;
 
-    public SpotifyAuthService(SpotifyProperties props, SpotifyAuthRepository repo) {
-        this.props = props;
+    public SpotifyAuthService(SpotifyAccountsClient accounts, SpotifyAuthRepository repo) {
+        this.accounts = accounts;
         this.repo = repo;
     }
 
-    public synchronized String createState() {
+    public synchronized String beginAuthorization() {
         byte[] bytes = new byte[16];
         new SecureRandom().nextBytes(bytes);
         pendingState = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         pendingStateExpiry = Instant.now().plus(STATE_TTL);
-        return pendingState;
+        return accounts.authorizeUrl(pendingState);
     }
 
     public synchronized boolean consumeState(String state) {
@@ -56,25 +46,8 @@ public class SpotifyAuthService {
         return valid;
     }
 
-    public String buildAuthorizeUrl(String state) {
-        return UriComponentsBuilder.fromUriString(AUTHORIZE_URL)
-                .queryParam("client_id", props.clientId())
-                .queryParam("response_type", "code")
-                .queryParam("redirect_uri", props.redirectUri())
-                .queryParam("scope", SCOPES)
-                .queryParam("state", state)
-                .encode()
-                .build()
-                .toUriString();
-    }
-
     public synchronized void exchangeCode(String code) {
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "authorization_code");
-        form.add("code", code);
-        form.add("redirect_uri", props.redirectUri());
-
-        SpotifyTokenResponse token = requestToken(form);
+        SpotifyTokenResponse token = accounts.exchangeCode(code);
         saveRefreshToken(token.refreshToken());
         cache(token);
     }
@@ -84,15 +57,11 @@ public class SpotifyAuthService {
             return cachedAccessToken;
         }
 
-        SpotifyAuth auth = repo.findById(1)
+        SpotifyAuth auth = repo.findCurrent()
                 .orElseThrow(() -> new IllegalStateException(
                         "Spotify no esta conectado. Visita /api/spotify/login"));
 
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "refresh_token");
-        form.add("refresh_token", auth.getRefreshToken());
-
-        SpotifyTokenResponse token = requestToken(form);
+        SpotifyTokenResponse token = accounts.refresh(auth.getRefreshToken());
         if (token.refreshToken() != null) {
             saveRefreshToken(token.refreshToken());
         }
@@ -100,33 +69,23 @@ public class SpotifyAuthService {
         return cachedAccessToken;
     }
 
-    public boolean isConnected() {
-        return repo.existsById(1);
-    }
-
-    public SpotifyStatus status() {
-        return repo.findById(1)
-                .map(auth -> new SpotifyStatus(true, auth.getUpdatedAt()))
-                .orElseGet(() -> new SpotifyStatus(false, null));
-    }
-
     public synchronized void invalidateAccessToken() {
         cachedAccessToken = null;
         cachedExpiry = Instant.EPOCH;
     }
 
-    private SpotifyTokenResponse requestToken(MultiValueMap<String, String> form) {
-        return restClient.post()
-                .uri(TOKEN_URL)
-                .headers(h -> h.setBasicAuth(props.clientId(), props.clientSecret()))
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(form)
-                .retrieve()
-                .body(SpotifyTokenResponse.class);
+    public boolean isConnected() {
+        return repo.hasCurrent();
+    }
+
+    public SpotifyStatus status() {
+        return repo.findCurrent()
+                .map(auth -> new SpotifyStatus(true, auth.getUpdatedAt()))
+                .orElseGet(() -> new SpotifyStatus(false, null));
     }
 
     private void saveRefreshToken(String refreshToken) {
-        SpotifyAuth auth = repo.findById(1).orElseGet(SpotifyAuth::new);
+        SpotifyAuth auth = repo.findCurrent().orElseGet(SpotifyAuth::new);
         auth.setRefreshToken(refreshToken);
         auth.setUpdatedAt(Instant.now());
         repo.save(auth);
@@ -134,6 +93,6 @@ public class SpotifyAuthService {
 
     private void cache(SpotifyTokenResponse token) {
         cachedAccessToken = token.accessToken();
-        cachedExpiry = Instant.now().plusSeconds(token.expiresIn() - 60);
+        cachedExpiry = Instant.now().plusSeconds(token.expiresIn() - EXPIRY_MARGIN_SECONDS);
     }
 }

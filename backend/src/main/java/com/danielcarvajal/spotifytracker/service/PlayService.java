@@ -12,8 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PlayService {
 
-    private static final long MIN_MS_PLAYED = 90_000;
-    private static final double SHORT_TRACK_COMPLETION = 0.9;
     private static final Duration DEDUPE_WINDOW = Duration.ofSeconds(30);
 
     private final CatalogService catalog;
@@ -22,13 +20,6 @@ public class PlayService {
     public PlayService(CatalogService catalog, PlayRepository playRepo) {
         this.catalog = catalog;
         this.playRepo = playRepo;
-    }
-
-    public boolean countsAsPlay(int durationMs, long msPlayed) {
-        if (durationMs <= MIN_MS_PLAYED) {
-            return msPlayed >= durationMs * SHORT_TRACK_COMPLETION;
-        }
-        return msPlayed > MIN_MS_PLAYED;
     }
 
     @Transactional

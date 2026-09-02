@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 
 @Service
@@ -20,15 +19,18 @@ public class PlayTrackerService {
 
     private final SpotifyPlayerClient player;
     private final PlayService playService;
+    private final ListeningRule rule;
     private final SpotifyAuthService authService;
 
     private Session current;
 
     public PlayTrackerService(SpotifyPlayerClient player,
                               PlayService playService,
+                              ListeningRule rule,
                               SpotifyAuthService authService) {
         this.player = player;
         this.playService = playService;
+        this.rule = rule;
         this.authService = authService;
     }
 
@@ -38,17 +40,13 @@ public class PlayTrackerService {
             return;
         }
         try {
-            CurrentlyPlayingResponse response = player.currentlyPlaying().orElse(null);
-            handle(response, Instant.now());
-        } catch (HttpClientErrorException.Unauthorized e) {
-            authService.invalidateAccessToken();
-            log.warn("Spotify rechazo el token, se renovara en el siguiente sondeo");
+            handle(player.currentlyPlaying().orElse(null), Instant.now());
         } catch (RestClientException e) {
             log.warn("Fallo consultando Spotify: {}", e.getMessage());
         }
     }
 
-    private void handle(CurrentlyPlayingResponse response, Instant now) {
+    void handle(CurrentlyPlayingResponse response, Instant now) {
         if (response == null || !response.isTrack()) {
             finish(now);
             return;
@@ -82,7 +80,7 @@ public class PlayTrackerService {
         current = null;
 
         SpotifyTrackDto track = session.track;
-        if (!playService.countsAsPlay(track.durationMs(), session.msPlayed)) {
+        if (!rule.countsAsPlay(track.durationMs(), session.msPlayed)) {
             log.debug("Descartada: {} - {} ({} s)",
                     track.artistNames(), track.name(), session.msPlayed / 1000);
             return;
